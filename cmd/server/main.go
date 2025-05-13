@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	// Инициализация и запуск REST сервера
+	// Initializing and starting the REST server
 	server := api.NewServer()
 	log.Println("REST server starting on :8081")
 	if err := server.Start(":8081"); err != nil {
