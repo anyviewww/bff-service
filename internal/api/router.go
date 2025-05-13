@@ -21,7 +21,7 @@ func (s *Server) Start(addr string) error {
 }
 
 func (s *Server) setupRoutes() {
-	// Меню
+	// Menu
 	menu := s.router.Group("/")
 	{
 		menu.POST("/CreateDish", s.createDish)
@@ -29,7 +29,7 @@ func (s *Server) setupRoutes() {
 		menu.GET("/GetMenu", s.getMenu)
 	}
 
-	// Заказы
+	// Orders
 	orders := s.router.Group("/orders")
 	{
 		orders.GET("/:id", s.getOrder)
