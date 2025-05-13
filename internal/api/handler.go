@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Структуры для блюд
+// Structures for dishes
 type DishRequest struct {
 	Name        string       `json:"name"`
 	Type        DishType     `json:"type"`
@@ -44,7 +44,7 @@ type MenuItem struct {
 	DishID int `json:"dish_id"`
 }
 
-// Структуры для заказов
+// Structures for orders
 type Order struct {
 	ID     int    `json:"id"`
 	UserID int    `json:"user_id"`
@@ -62,7 +62,7 @@ type UpdateOrderRequest struct {
 	Items  []int   `json:"items,omitempty"`
 }
 
-// Методы для блюд
+// Methods for dishes
 func (s *Server) createDish(c *gin.Context) {
 	var req DishRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -104,7 +104,7 @@ func (s *Server) getMenu(c *gin.Context) {
 	})
 }
 
-// Методы для заказов
+// Methods for orders
 func (s *Server) getOrder(c *gin.Context) {
 	id := c.Param("id")
 	if id == "" {
