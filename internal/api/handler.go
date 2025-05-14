@@ -1,181 +1,204 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
+
+	pbDishes "bff-service/proto/dishes"
+	pbOrders "bff-service/proto/orders"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Structures for dishes
-type DishRequest struct {
-	Name        string       `json:"name"`
-	Type        DishType     `json:"type"`
-	Category    DishCategory `json:"category"`
-	Price       float64      `json:"price"`
-	Weight      float64      `json:"weight"`
-	Description string       `json:"description"`
-	Nutrition   Nutrition    `json:"nutrition"`
-	Tag         DishTag      `json:"tag"`
-	Recipe      string       `json:"recipe"`
+type Handler struct {
+	menuClient  pbDishes.DishServiceClient
+	orderClient pbOrders.OrderServiceClient
 }
 
-type DishType struct {
-	ID int `json:"id"`
+func NewHandler(menuClient pbDishes.DishServiceClient, orderClient pbOrders.OrderServiceClient) *Handler {
+	return &Handler{
+		menuClient:  menuClient,
+		orderClient: orderClient,
+	}
 }
 
-type DishCategory struct {
-	ID int `json:"id"`
-}
+// Menu Handlers
 
-type Nutrition struct {
-	Calories      float64 `json:"calories"`
-	Proteins      float64 `json:"proteins"`
-	Fats          float64 `json:"fats"`
-	Carbohydrates float64 `json:"carbohydrates"`
-}
-
-type DishTag struct {
-	ID int `json:"id"`
-}
-
-type MenuItem struct {
-	DishID int `json:"dish_id"`
-}
-
-// Structures for orders
-type Order struct {
-	ID     int    `json:"id"`
-	UserID int    `json:"user_id"`
-	Items  []int  `json:"items"`
-	Status string `json:"status"`
-}
-
-type CreateOrderRequest struct {
-	UserID int   `json:"user_id"`
-	Items  []int `json:"items"`
-}
-
-type UpdateOrderRequest struct {
-	Status *string `json:"status,omitempty"`
-	Items  []int   `json:"items,omitempty"`
-}
-
-// Methods for dishes
-func (s *Server) createDish(c *gin.Context) {
-	var req DishRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+func (h *Handler) GetDish(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 32)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid dish ID format"})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"status":  "created",
-		"dish_id": 1,
+	resp, err := h.menuClient.GetDishes(c.Request.Context(), &pbDishes.DishRequest{
+		Id: int32(id),
 	})
-}
-
-func (s *Server) createMenu(c *gin.Context) {
-	var menuItems []MenuItem
-	if err := c.ShouldBindJSON(&menuItems); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"status":  "created",
-		"menu_id": 1,
-		"dishes":  menuItems,
-	})
+	if len(resp.Dishes) == 0 {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Dish not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, toDishResponse(resp.Dishes[0]))
 }
 
-func (s *Server) getMenu(c *gin.Context) {
-	menu := []gin.H{
-		{
-			"dish_id": 1,
-			"name":    "Шашлык",
-			"price":   350.0,
+func (h *Handler) GetAllDishes(c *gin.Context) {
+	resp, err := h.menuClient.GetDishes(c.Request.Context(), &pbDishes.DishRequest{})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	dishes := make([]gin.H, 0, len(resp.Dishes))
+	for _, dish := range resp.Dishes {
+		dishes = append(dishes, toDishResponse(dish))
+	}
+
+	c.JSON(http.StatusOK, gin.H{"dishes": dishes})
+}
+
+func toDishResponse(dish *pbDishes.Dish) gin.H {
+	return gin.H{
+		"id":       dish.Id,
+		"name":     dish.Name,
+		"type":     gin.H{"id": dish.Type.Id, "name": dish.Type.TypeDish},
+		"category": gin.H{"id": dish.Category.Id, "name": dish.Category.CategoryDish},
+		"nutrition": gin.H{
+			"calories":      dish.NutFact.Calories,
+			"proteins":      dish.NutFact.Proteins,
+			"fats":          dish.NutFact.Fats,
+			"carbohydrates": dish.NutFact.Carbohydrates,
 		},
+		"tag":    gin.H{"id": dish.Tag.Id, "name": dish.Tag.TagDish},
+		"recipe": dish.Recipe,
 	}
-
-	c.JSON(http.StatusOK, gin.H{
-		"menu": menu,
-	})
 }
 
-// Methods for orders
-func (s *Server) getOrder(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "order ID is required"})
-		return
+// Order Handlers
+
+func (h *Handler) CreateOrder(c *gin.Context) {
+	var req struct {
+		UserID uint64  `json:"user_id" binding:"required"`
+		Items  []int64 `json:"items" binding:"required,min=1"`
 	}
 
-	orderID, _ := strconv.Atoi(id)
-	c.JSON(http.StatusOK, Order{
-		ID:     orderID,
-		UserID: 13,
-		Items:  []int{13, 15, 7},
-		Status: "processing",
-	})
-}
-
-func (s *Server) createOrder(c *gin.Context) {
-	var req CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusCreated, Order{
-		ID:     3,
-		UserID: req.UserID,
+	order, err := h.orderClient.CreateOrder(c.Request.Context(), &pbOrders.CreateOrderRequest{
+		UserId: req.UserID,
 		Items:  req.Items,
-		Status: "created",
 	})
-}
-
-func (s *Server) updateOrder(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "order ID is required"})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	var req UpdateOrderRequest
+	c.JSON(http.StatusCreated, toOrderResponse(order))
+}
+
+func (h *Handler) GetOrder(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
+		return
+	}
+
+	order, err := h.orderClient.GetOrder(c.Request.Context(), &pbOrders.GetOrderRequest{
+		Id: id,
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, toOrderResponse(order))
+}
+
+func (h *Handler) UpdateOrder(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
+		return
+	}
+
+	var req struct {
+		UserID *uint64 `json:"user_id,omitempty"`
+		Items  []int64 `json:"items,omitempty"`
+		Status *string `json:"status,omitempty"`
+	}
+
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	orderID, _ := strconv.Atoi(id)
-	status := "cooked"
-	if req.Status != nil {
-		status = *req.Status
+	updateReq := &pbOrders.UpdateOrderRequest{Id: id}
+	if req.UserID != nil {
+		updateReq.UserId = *req.UserID
 	}
-
-	items := []int{13, 15, 7}
 	if req.Items != nil {
-		items = req.Items
+		updateReq.Items = req.Items
+	}
+	if req.Status != nil {
+		updateReq.Status = *req.Status
 	}
 
-	c.JSON(http.StatusOK, Order{
-		ID:     orderID,
-		UserID: 13,
-		Items:  items,
-		Status: status,
-	})
-}
-
-func (s *Server) deleteOrder(c *gin.Context) {
-	id := c.Param("id")
-	if id == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "order ID is required"})
+	order, err := h.orderClient.UpdateOrder(c.Request.Context(), updateReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": fmt.Sprintf("order %s deleted", id),
+	c.JSON(http.StatusOK, toOrderResponse(order))
+}
+
+func (h *Handler) DeleteOrder(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
+		return
+	}
+
+	resp, err := h.orderClient.DeleteOrder(c.Request.Context(), &pbOrders.DeleteOrderRequest{
+		Id: id,
 	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	if resp.Deleted {
+		c.JSON(http.StatusOK, gin.H{"message": "Order deleted successfully"})
+	} else {
+		c.JSON(http.StatusNotFound, gin.H{"message": "Order not found"})
+	}
+}
+
+func (h *Handler) GetUserOrders(c *gin.Context) {
+	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// В текущей реализации proto нет метода для получения заказов пользователя
+	// Это пример того, как можно реализовать, если добавить метод в OrderService
+	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
+}
+
+func toOrderResponse(order *pbOrders.OrderResponse) gin.H {
+	return gin.H{
+		"id":      order.Id,
+		"user_id": order.UserId,
+		"items":   order.Items,
+		"status":  order.Status,
+	}
 }

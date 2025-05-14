@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package dishes;
+
+option go_package = "github.com/anyviewww/bff-service/proto/dishes";
+
+service DishService {
+  rpc GetDishes (DishRequest) returns (DishesResponse);
+}
+
+message DishRequest {
+  int32 id = 1;
+}
+
+message DishesResponse {
+  repeated Dish dishes = 1;
+}
+
+message Dish {
+  int32 id = 1;
+  string name = 2;
+  Type type = 3;
+  Category category = 4;
+  NutritionFact nut_fact = 5;
+  Tag tag = 6;
+  string recipe = 7;
+}
+
+message Type {
+  int32 id = 1;
+  string type_dish = 2;
+}
+
+message Category {
+  int32 id = 1;
+  string category_dish = 2;
+}
+
+message NutritionFact {
+  int32 id = 1;
+  float calories = 2;
+  float proteins = 3;
+  float fats = 4;
+  float carbohydrates = 5;
+}
+
+message Tag {
+  int32 id = 1;
+  string tag_dish = 2;
+}

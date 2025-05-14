@@ -1,0 +1,50 @@
+syntax = "proto3";
+
+package orders;
+
+option go_package = "github.com/anyviewww/bff-service/proto/orders";
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (OrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (OrderResponse);
+  rpc UpdateOrder(UpdateOrderRequest) returns (OrderResponse);
+  rpc DeleteOrder(DeleteOrderRequest) returns (DeleteOrderResponse);
+}
+
+message Order {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  repeated int64 items = 3;
+  string status = 4;
+}
+
+message CreateOrderRequest {
+  uint64 user_id = 1;
+  repeated int64 items = 2;
+}
+
+message GetOrderRequest {
+  uint64 id = 1;
+}
+
+message UpdateOrderRequest {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  repeated int64 items = 3;
+  string status = 4;
+}
+
+message DeleteOrderRequest {
+  uint64 id = 1;
+}
+
+message OrderResponse {
+  uint64 id = 1;
+  uint64 user_id = 2;
+  repeated int64 items = 3;
+  string status = 4;
+}
+
+message DeleteOrderResponse {
+  bool deleted = 1;
+}

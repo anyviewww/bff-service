@@ -4,37 +4,35 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Server struct {
-	router *gin.Engine
+type Router struct {
+	handler *Handler
 }
 
-func NewServer() *Server {
-	s := &Server{
-		router: gin.Default(),
-	}
-	s.setupRoutes()
-	return s
+func NewRouter(handler *Handler) *Router {
+	return &Router{handler: handler}
 }
 
-func (s *Server) Start(addr string) error {
-	return s.router.Run(addr)
-}
-
-func (s *Server) setupRoutes() {
-	// Menu
-	menu := s.router.Group("/")
+func (r *Router) SetupRoutes(engine *gin.Engine) {
+	api := engine.Group("/api/v1")
 	{
-		menu.POST("/CreateDish", s.createDish)
-		menu.POST("/CreateMenu", s.createMenu)
-		menu.GET("/GetMenu", s.getMenu)
+		// Menu endpoints
+		menu := api.Group("/menu")
+		{
+			menu.GET("/dishes/:id", r.handler.GetDish)
+		}
+
+		// Order endpoints
+		orders := api.Group("/orders")
+		{
+			orders.POST("/", r.handler.CreateOrder)
+			orders.GET("/:id", r.handler.GetOrder)
+			orders.PUT("/:id", r.handler.UpdateOrder)
+			orders.DELETE("/:id", r.handler.DeleteOrder)
+		}
 	}
 
-	// Orders
-	orders := s.router.Group("/orders")
-	{
-		orders.GET("/:id", s.getOrder)
-		orders.POST("/", s.createOrder)
-		orders.PATCH("/:id", s.updateOrder)
-		orders.DELETE("/:id", s.deleteOrder)
-	}
+	// Health check
+	engine.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 }
