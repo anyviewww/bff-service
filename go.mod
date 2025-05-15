@@ -11,6 +11,6 @@ require (
 )
 
 replace (
-	github.com/KusakinDev/Catering-Menu-Service => ../Catering-Menu-Service
-	github.com/lyfoore/catering_order_microservice => ../catering_order_microservice
+    github.com/anyviewww/bff-service/proto/dishes => ./proto/dishes
+    github.com/anyviewww/bff-service/proto/orders => ./proto/orders
 )
