@@ -9,9 +9,9 @@ import (
 	"syscall"
 	"time"
 
-	"bff-service/internal/api"
-	"bff-service/internal/client"
-	"bff-service/internal/config"
+	"github.com/anyviewww/bff-service/internal/api"
+	"github.com/anyviewww/bff-service/internal/client"
+	"github.com/anyviewww/bff-service/internal/config"
 
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"

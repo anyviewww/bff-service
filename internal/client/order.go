@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	pb "bff-service/proto/orders"
+	pb "github.com/anyviewww/bff-service/proto/orders"
 
 	"google.golang.org/grpc"
 )

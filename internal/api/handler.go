@@ -1,11 +1,9 @@
-package api
-
 import (
 	"net/http"
 	"strconv"
 
-	pbDishes "bff-service/proto/dishes"
-	pbOrders "bff-service/proto/orders"
+	pbDishes "github.com/anyviewww/bff-service/proto/dishes"
+	pbOrders "github.com/anyviewww/bff-service/proto/orders"
 
 	"github.com/gin-gonic/gin"
 )

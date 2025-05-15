@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package dishes;
 
-option go_package = "github.com/anyviewww/bff-service/proto/dishes";
+option go_package = "dishes";
 
 service DishService {
   rpc GetDishes (DishRequest) returns (DishesResponse);

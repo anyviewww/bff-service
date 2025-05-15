@@ -4,8 +4,7 @@ import (
 	"context"
 	"log"
 
-	pb "bff-service/proto/dishes"
-
+	pb "github.com/anyviewww/bff-service/proto/dishes"
 	"google.golang.org/grpc"
 )
 
