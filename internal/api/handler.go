@@ -1,3 +1,5 @@
+package api
+
 import (
 	"net/http"
 	"strconv"
@@ -181,7 +183,7 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 }
 
 func (h *Handler) GetUserOrders(c *gin.Context) {
-	userID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	_, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
 		return

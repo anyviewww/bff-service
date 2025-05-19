@@ -9,13 +9,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/anyviewww/bff-service/internal/api"
-	"github.com/anyviewww/bff-service/internal/client"
-	"github.com/anyviewww/bff-service/internal/config"
-
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/anyviewww/bff-service/internal/api"
+	"github.com/anyviewww/bff-service/internal/client"
+	"github.com/anyviewww/bff-service/internal/config"
 )
 
 func main() {

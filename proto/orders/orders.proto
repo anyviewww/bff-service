@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package orders;
 
-option go_package = "orders"; 
+option go_package = "github.com/anyviewww/bff-service/proto/orders"; 
 
 service OrderService {
   rpc CreateOrder(CreateOrderRequest) returns (OrderResponse);
