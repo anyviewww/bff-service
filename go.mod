@@ -1,4 +1,4 @@
-module github.com/yourusername/bff-service
+module github.com/anyviewww/bff-service
 
 go 1.21
 
