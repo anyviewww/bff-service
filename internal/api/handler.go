@@ -1,18 +1,22 @@
 package api
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	pbDishes "github.com/anyviewww/bff-service/proto/dishes"
 	pbOrders "github.com/anyviewww/bff-service/proto/orders"
 
+	"github.com/anyviewww/bff-service/internal/config"
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v4"
 )
 
 type Handler struct {
 	menuClient  pbDishes.DishServiceClient
 	orderClient pbOrders.OrderServiceClient
+	cfg         *config.Config
 }
 
 func NewHandler(menuClient pbDishes.DishServiceClient, orderClient pbOrders.OrderServiceClient) *Handler {
@@ -20,6 +24,10 @@ func NewHandler(menuClient pbDishes.DishServiceClient, orderClient pbOrders.Orde
 		menuClient:  menuClient,
 		orderClient: orderClient,
 	}
+}
+
+func (h *Handler) SetConfig(cfg *config.Config) {
+	h.cfg = cfg
 }
 
 // Menu Handlers
@@ -80,11 +88,15 @@ func toDishResponse(dish *pbDishes.Dish) gin.H {
 }
 
 // Order Handlers
-
 func (h *Handler) CreateOrder(c *gin.Context) {
+	userID, err := h.getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
 	var req struct {
-		UserID uint64  `json:"user_id" binding:"required"`
-		Items  []int64 `json:"items" binding:"required,min=1"`
+		Items []int64 `json:"items" binding:"required,min=1"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -93,7 +105,7 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 	}
 
 	order, err := h.orderClient.CreateOrder(c.Request.Context(), &pbOrders.CreateOrderRequest{
-		UserId: req.UserID,
+		UserId: userID, // Используем userID из токена
 		Items:  req.Items,
 	})
 	if err != nil {
@@ -103,8 +115,35 @@ func (h *Handler) CreateOrder(c *gin.Context) {
 
 	c.JSON(http.StatusCreated, toOrderResponse(order))
 }
+func (h *Handler) GetUserOrders(c *gin.Context) {
+	// Получаем userID из токена
+	tokenUserID, err := h.getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
 
+	// Получаем userID из URL параметра
+	paramUserID, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
+		return
+	}
+
+	// Проверяем, что пользователь запрашивает свои заказы
+	if tokenUserID != paramUserID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only view your own orders"})
+		return
+	}
+
+}
 func (h *Handler) GetOrder(c *gin.Context) {
+	userID, err := h.getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
@@ -123,14 +162,32 @@ func (h *Handler) GetOrder(c *gin.Context) {
 }
 
 func (h *Handler) UpdateOrder(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	userID, err := h.getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	orderID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
 		return
 	}
 
+	currentOrder, err := h.orderClient.GetOrder(c.Request.Context(), &pbOrders.GetOrderRequest{
+		Id: orderID,
+	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if currentOrder.UserId != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only update your own orders"})
+		return
+	}
+
 	var req struct {
-		UserID *uint64 `json:"user_id,omitempty"`
 		Items  []int64 `json:"items,omitempty"`
 		Status *string `json:"status,omitempty"`
 	}
@@ -140,10 +197,10 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		return
 	}
 
-	updateReq := &pbOrders.UpdateOrderRequest{Id: id}
-	if req.UserID != nil {
-		updateReq.UserId = *req.UserID
+	updateReq := &pbOrders.UpdateOrderRequest{
+		Id: orderID,
 	}
+
 	if req.Items != nil {
 		updateReq.Items = req.Items
 	}
@@ -151,25 +208,45 @@ func (h *Handler) UpdateOrder(c *gin.Context) {
 		updateReq.Status = *req.Status
 	}
 
-	order, err := h.orderClient.UpdateOrder(c.Request.Context(), updateReq)
+	updatedOrder, err := h.orderClient.UpdateOrder(c.Request.Context(), updateReq)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, toOrderResponse(order))
+	c.JSON(http.StatusOK, toOrderResponse(updatedOrder))
 }
 
 func (h *Handler) DeleteOrder(c *gin.Context) {
-	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	userID, err := h.getUserIDFromToken(c)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	orderID, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid order ID format"})
 		return
 	}
 
-	resp, err := h.orderClient.DeleteOrder(c.Request.Context(), &pbOrders.DeleteOrderRequest{
-		Id: id,
+	currentOrder, err := h.orderClient.GetOrder(c.Request.Context(), &pbOrders.GetOrderRequest{
+		Id: orderID,
 	})
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Order not found"})
+		return
+	}
+
+	if currentOrder.UserId != userID {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You can only delete your own orders"})
+		return
+	}
+
+	resp, err := h.orderClient.DeleteOrder(c.Request.Context(), &pbOrders.DeleteOrderRequest{
+		Id: orderID,
+	})
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -182,18 +259,6 @@ func (h *Handler) DeleteOrder(c *gin.Context) {
 	}
 }
 
-func (h *Handler) GetUserOrders(c *gin.Context) {
-	_, err := strconv.ParseUint(c.Param("user_id"), 10, 64)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID format"})
-		return
-	}
-
-	// В текущей реализации proto нет метода для получения заказов пользователя
-	// Это пример того, как можно реализовать, если добавить метод в OrderService
-	c.JSON(http.StatusNotImplemented, gin.H{"error": "Not implemented"})
-}
-
 func toOrderResponse(order *pbOrders.OrderResponse) gin.H {
 	return gin.H{
 		"id":      order.Id,
@@ -201,4 +266,23 @@ func toOrderResponse(order *pbOrders.OrderResponse) gin.H {
 		"items":   order.Items,
 		"status":  order.Status,
 	}
+}
+
+func (h *Handler) getUserIDFromToken(c *gin.Context) (uint64, error) {
+	claims, exists := c.Get("jwtClaims")
+	if !exists {
+		return 0, errors.New("token claims not found")
+	}
+
+	jwtClaims, ok := claims.(jwt.MapClaims)
+	if !ok {
+		return 0, errors.New("invalid token claims format")
+	}
+
+	userID, ok := jwtClaims["id"].(float64) // JWT числа всегда float64
+	if !ok {
+		return 0, errors.New("user ID not found in token")
+	}
+
+	return uint64(userID), nil
 }

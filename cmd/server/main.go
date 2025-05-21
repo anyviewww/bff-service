@@ -21,18 +21,18 @@ import (
 func main() {
 	cfg := config.Load()
 
-	// Инициализация gRPC соединений
+	// Initialize gRPC connections
 	menuConn := createGRPCConnection(cfg.MenuServiceAddr)
 	defer menuConn.Close()
 
 	orderConn := createGRPCConnection(cfg.OrderServiceAddr)
 	defer orderConn.Close()
 
-	// Создание клиентов
+	// Creating Clients
 	menuClient := client.NewMenuClient(menuConn)
 	orderClient := client.NewOrderClient(orderConn)
 
-	// Настройка HTTP сервера
+	// Setting up an HTTP server
 	router := gin.Default()
 	apiHandler := api.NewHandler(menuClient, orderClient)
 	apiRouter := api.NewRouter(apiHandler)
