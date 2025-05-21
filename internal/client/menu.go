@@ -13,6 +13,11 @@ type MenuClient struct {
 	conn   *grpc.ClientConn
 }
 
+// GetDishes implements dishes.DishServiceClient.
+func (c *MenuClient) GetDishes(ctx context.Context, in *pb.DishRequest, opts ...grpc.CallOption) (*pb.DishesResponse, error) {
+	panic("unimplemented")
+}
+
 func NewMenuClient(conn *grpc.ClientConn) *MenuClient {
 	return &MenuClient{
 		client: pb.NewDishServiceClient(conn),

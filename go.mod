@@ -1,4 +1,4 @@
-module github.com/yourusername/bff-service
+module github.com/anyviewww/bff-service
 
 go 1.21
 
@@ -39,6 +39,6 @@ require (
 )
 
 replace (
-	github.com/yourusername/bff-service/proto/dishes => ./proto/dishes
-	github.com/yourusername/bff-service/proto/orders => ./proto/orders
+	github.com/anyviewww/bff-service/proto/dishes => ./proto/dishes
+	github.com/anyviewww/bff-service/proto/orders => ./proto/orders
 )
