@@ -9,6 +9,7 @@ service OrderService {
   rpc GetOrder(GetOrderRequest) returns (OrderResponse);
   rpc UpdateOrder(UpdateOrderRequest) returns (OrderResponse);
   rpc DeleteOrder(DeleteOrderRequest) returns (DeleteOrderResponse);
+  rpc GetUserOrders(GetUserOrdersRequest) returns (UserOrdersResponse);
 }
 
 message Order {
@@ -43,6 +44,14 @@ message OrderResponse {
   uint64 user_id = 2;
   repeated int64 items = 3;
   string status = 4;
+}
+
+message GetUserOrdersRequest {
+  uint64 user_id = 1;
+}
+
+message UserOrdersResponse {
+  repeated OrderResponse orders = 1;
 }
 
 message DeleteOrderResponse {
