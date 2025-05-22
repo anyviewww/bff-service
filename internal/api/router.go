@@ -28,7 +28,6 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 			orders.GET("/:id", r.handler.GetOrder)
 			orders.PUT("/:id", r.handler.UpdateOrder)
 			orders.DELETE("/:id", r.handler.DeleteOrder)
-			orders.GET("/user/:user_id", r.handler.GetUserOrderHistory)
 		}
 	}
 
