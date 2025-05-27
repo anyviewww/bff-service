@@ -1,14 +1,14 @@
-FROM golang:1.21-alpine as builder
+FROM golang:1.21.4-alpine3.18 AS builder
 WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
 COPY . .
-RUN apk add --no-cache git && \
-    go mod download && \
-    CGO_ENABLED=0 GOOS=linux go build -o bff-service ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /app/bff-service ./cmd/server
 
-FROM alpine:3.18
-RUN apk add --no-cache ca-certificates
-WORKDIR /root/
-COPY --from=builder /app/bff-service .
-COPY --from=builder /app/proto ./proto
+FROM alpine:3.18.4
+WORKDIR /app
+COPY --from=builder /app/bff-service /app/
+COPY --from=builder /app/proto/ /app/proto/
+COPY --from=builder /app/configs/ /app/configs/
 EXPOSE 8080
 CMD ["./bff-service"]

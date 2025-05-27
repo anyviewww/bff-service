@@ -150,7 +150,8 @@ func (h *Handler) getValidatedOrder(c *gin.Context) (*pbOrders.OrderResponse, bo
 		return nil, false
 	}
 
-	orderID, ok := h.parseIDParam(c, "id", 64)
+	orderIDStr := c.Param("id")
+	orderID, err := strconv.ParseUint(orderIDStr, 10, 64)
 	if !ok {
 		return nil, false
 	}

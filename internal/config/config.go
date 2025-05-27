@@ -6,6 +6,7 @@ type Config struct {
 	MenuServiceAddr  string
 	OrderServiceAddr string
 	ServerPort       string
+	JWTSecretKey     string
 }
 
 func Load() *Config {
@@ -13,6 +14,7 @@ func Load() *Config {
 		MenuServiceAddr:  getEnv("MENU_SERVICE_ADDR", "menu-service:50051"),
 		OrderServiceAddr: getEnv("ORDER_SERVICE_ADDR", "order-service:50052"),
 		ServerPort:       getEnv("SERVER_PORT", "8080"),
+		JWTSecretKey:     getEnv("JWT_SECRET_KEY", ""),
 	}
 }
 

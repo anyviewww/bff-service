@@ -14,27 +14,30 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/anyviewww/bff-service/internal/api"
-	"github.com/anyviewww/bff-service/internal/client"
 	"github.com/anyviewww/bff-service/internal/config"
+	pbDishes "github.com/anyviewww/bff-service/proto/dishes"
+	pbOrders "github.com/anyviewww/bff-service/proto/orders"
 )
 
 func main() {
 	cfg := config.Load()
 
-	// Initialize gRPC connections
+	// initialising gRPC connections
 	menuConn := createGRPCConnection(cfg.MenuServiceAddr)
 	defer menuConn.Close()
 
 	orderConn := createGRPCConnection(cfg.OrderServiceAddr)
 	defer orderConn.Close()
 
-	// Creating Clients
-	menuClient := client.NewMenuClient(menuConn)
-	orderClient := client.NewOrderClient(orderConn)
+	// customer creation
+	dishClient := pbDishes.NewDishServiceClient(menuConn)
+	orderClient := pbOrders.NewOrderServiceClient(orderConn)
 
-	// Setting up an HTTP server
+	// configuring the HTTP server
 	router := gin.Default()
-	apiHandler := api.NewHandler(menuClient, orderClient)
+
+	// create API handler
+	apiHandler := api.NewHandler(dishClient, orderClient, cfg)
 	apiRouter := api.NewRouter(apiHandler)
 	apiRouter.SetupRoutes(router)
 
@@ -43,7 +46,7 @@ func main() {
 		Handler: router,
 	}
 
-	// Graceful shutdown
+	// graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
