@@ -14,6 +14,7 @@ func NewRouter(handler *Handler) *Router {
 
 func (r *Router) SetupRoutes(engine *gin.Engine) {
 	api := engine.Group("/api/v1")
+	api.Use(r.authMiddleware())
 	{
 		// Menu endpoints
 		menu := api.Group("/menu")
