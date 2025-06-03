@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile  
+    ports:
+      - "8080:8080"  
+    environment:
+      - MENU_SERVICE_ADDR=menu-service:50051
+      - ORDER_SERVICE_ADDR=order-service:50052
+      - SERVER_PORT=8080
+      - JWT_SECRET_KEY=your_secret_key_here
+    depends_on:
+      - menu-service
+      - order-service
+    networks:
+      - app-network
+
+  menu-service:
+    image: menu-service:latest 
+    ports:
+      - "50051:50051" 
+    networks:
+      - app-network
+
+
+  order-service:
+    image: order-service:latest  
+      - "50052:50052"
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

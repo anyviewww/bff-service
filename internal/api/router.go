@@ -19,6 +19,7 @@ func (r *Router) SetupRoutes(engine *gin.Engine) {
 		// Menu endpoints
 		menu := api.Group("/menu")
 		{
+			menu.GET("/dishes", r.handler.GetAllDishes)
 			menu.GET("/dishes/:id", r.handler.GetDish)
 		}
 
